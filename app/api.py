@@ -1,9 +1,14 @@
 import spacy
 from fastapi import FastAPI
 from pydantic import BaseModel
+from starlette.responses import RedirectResponse
 
 en_core_web = spacy.load("en_core_web_sm")
 app = FastAPI(tags=['sentence'])
+
+@app.get("/", include_in_schema=False)
+def docs_redirect():
+    return RedirectResponse("/docs")
 
 class Input(BaseModel):
     sentence: str
