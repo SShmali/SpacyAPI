@@ -1,39 +1,43 @@
 import spacy
-from fastapi import FastAPI
+import srsly
+from fastapi import Body, FastAPI
+from negspacy.negation import Negex
 from pydantic import BaseModel
 from starlette.responses import RedirectResponse
 
-en_core_web = spacy.load("en_core_web_sm")
-app = FastAPI(tags=['sentence'])
+from app.entity_extractor import EntityExtractor
+from app.models import RecordRequest, RecordResponse
+
+app = FastAPI(
+    title="health Text Analysis",
+    version="1.0",
+    description="exteaxt medical conditions entities from patient text notes",
+)
+
+example_request = srsly.read_json("app/data/example_request.json")
+
+nlp = spacy.load("en_core_sci_scibert")
+
+nlp.Defaults.stop_words |= {"patient","days",}
+
+nlp.add_pipe("negex", config={"chunk_prefix": ["no"]},last=True)
+
+extractor = EntityExtractor(nlp)
 
 @app.get("/", include_in_schema=False)
 def docs_redirect():
     return RedirectResponse("/docs")
 
-class Input(BaseModel):
-    sentence: str
 
-@app.post("/analyze_text")
-def get_text_characteristics(sentence_input: Input):
-    document = en_core_web(sentence_input.sentence)
-    output_array = []
-    for token in document:
-        output = {
-            "Index": token.i, "Token": token.text, "Tag": token.tag_, "POS": token.pos_,
-            "Dependency": token.dep_, "Lemma": token.lemma_, "Shape": token.shape_,
-            "Alpha": token.is_alpha, "Is Stop Word": token.is_stop
-        }
-        output_array.append(output)
-    return {"output": output_array}
+@app.post("/entities", response_model=RecordResponse, tags=["NER"])
+async def extract_entities(body: RecordRequest = Body(..., example=example_request)):
+    """Extract Named Entities from a document."""
 
-@app.post("/entity_recognition")
-def get_entity(sentence_input: Input):
-    document = en_core_web(sentence_input.sentence)
-    output_array = []
-    for token in document.ents:
-        output = {
-            "Text": token.text, "Start Char": token.start_char,
-            "End Char": token.end_char, "Label": token.label_
-        }
-        output_array.append(output)
-    return {"output": output_array}
+    res = []
+    document = {"text": body.data.text}
+
+    entities_res = extractor.extract_entities(document)
+
+    res = {"entities":  entities_res["entities"]}
+
+    return {"values": res}
