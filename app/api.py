@@ -33,11 +33,8 @@ def docs_redirect():
 async def extract_entities(body: RecordRequest = Body(..., example=example_request)):
     """Extract Named Entities from a document."""
 
-    res = []
     document = {"text": body.data.text}
 
     entities_res = extractor.extract_entities(document)
 
-    res = {"entities":  entities_res["entities"]}
-
-    return {"values": res}
+    return {"values": entities_res}

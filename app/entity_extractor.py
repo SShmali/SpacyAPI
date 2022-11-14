@@ -9,7 +9,7 @@ class EntityExtractor:
     """
 
     def __init__(
-        self, nlp: Language, input_text_col: str = "text"
+        self, nlp: Language, input_text: str = "text"
     ):
         """Initialize the SpacyExtractor pipeline.
         
@@ -19,7 +19,7 @@ class EntityExtractor:
         RETURNS (EntityRecognizer): The newly constructed object.
         """
         self.nlp = nlp
-        self.input_text_col = input_text_col
+        self.input_text = input_text
 
     def extract_entities(self, doc: Dict[str]):
         """Apply the pre-trained model to a batch of records
@@ -30,18 +30,24 @@ class EntityExtractor:
         RETURNS (list): response containing
             the correlating document and a list of entities.
         """
-        text = doc[self.input_text_col]
+        text = doc[self.input_text]
         spacy_doc = self.nlp.pipe(text)
-        entities = {}
+        entities = []
         for ent in spacy_doc.ents:
-            entities= {
+            if ent.text in self.nlp.Defaults.stop_words:
+              continue
+
+            entity= {
                         "name": ent.text,
                         "label": ent.label_,
-                        "matches": [],
+                        "match": [],
                     }
-            entities["match"].append(
+            entity["match"].append(
                     {"start": ent.start_char, "end": ent.end_char, "negation": ent._.negex}
                 )
+            entities.append(entity)
+
+        return entities
 
 
 
